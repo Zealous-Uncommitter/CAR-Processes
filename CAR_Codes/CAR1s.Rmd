@@ -1,0 +1,217 @@
+---
+title: "CAR1Recovery"
+output: html_document
+date: "2026-10-08"
+---
+
+```{r}
+library(ggplot2)
+```
+
+
+#inputs
+
+```{r}
+N = 100
+K = 10000
+M = 500
+a1 = 1.5
+a2 = .1
+b0 = 1 #should always be one
+sigma = 1
+mu = 3
+eta = 1
+Y0_1 <- 0
+Y1_1 <- 0
+a <- 1
+b <- 2
+```
+
+##CAR1 function
+
+```{r}
+Car_2Recovery <- function(a1, a2, Y, M) {
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  YRecov <- numeric(length(Y) - 1)
+  for (i in 2:(length(Y))){
+    YRecov[i] <- (1 / (lambda2 - lambda1)) * (-lambda1 * Y[i] + (M * (Y[i]-Y[i-1])))
+  }
+  out <- YRecov
+}
+```
+
+
+```{r}
+CAR1<-function(a,sigma,N,K,noise,Y0)
+{
+  Y <-numeric(N*K+100000);
+  Y[1] <- Y0;
+  Dt=1/K;
+  for(i in 2:(N*K+100000)){
+    Y[i] <- Y[i-1]- a*Y[i-1]*Dt + sigma*noise[i];
+  }
+  out<-Y[100000:(N*K+100000)]
+}
+```
+
+```{r}
+Car1Recovery <- function(a1, a2, Y, M) {
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  Kappa1 <- (b0) / (lambda1-lambda2)
+  Kappa2 <- (b0) / (lambda2-lambda1)
+  YRecov <- numeric(length(Y) - 1)
+  for (i in 2:(length(Y))){
+    YRecov[i] <- (1 / (lambda2 - lambda1)) * (lambda2 * Y[i] - (M * (Y[i]-Y[i-1])))
+  }
+  out <- YRecov
+}
+```
+
+```{r}
+CAR1Real <- function(a1, a2, noise, eta) {
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  Kappa1 <- (b0) / (lambda1-lambda2)
+  Y1REAL <- CAR1(-lambda1, Kappa1, N, K, noise, Y0_1)
+  out <- Y1REAL
+}
+```
+
+```{r}
+CAR_2Real <- function(a1, a2, noise, eta) {
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  Kappa2 <- (b0) / (lambda2-lambda1)
+  Y2REAL <- CAR1(-lambda2, Kappa2, N, K, noise, Y0_1)
+  out <- Y2REAL
+}
+```
+
+
+##CAR2 approached from 2 dependent CAR1 processes
+
+```{r}
+CAR2 <- function(a1, a2, b0, noise, eta) {
+  
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  Kappa1 <- (b0) / (lambda1-lambda2)
+  Kappa2 <- (b0) / (lambda2-lambda1)
+  Y1 <- CAR1(-lambda1, Kappa1, N, K, noise, Y0_1)
+  Y2 <- CAR1(-lambda2, Kappa2, N, K, noise, Y1_1)
+  Y <- Y1 + Y2
+  out <- Y
+}
+
+```
+
+
+```{r}
+NewCAR2 <- function(a1, a2, b0, N, K, noise, Y0 = 0, Y1 = 0)
+{
+  h <- 1 / K
+  
+  Y <- numeric(N * K + 100000)
+  
+  Y[1] <- Y0
+  Y[2] <- Y1
+  
+  for(i in 2:(length(Y)-1))
+  {
+    Y[i+1] <-
+      2 * Y[i] -
+      Y[i-1] -
+      a1 * h * (Y[i] - Y[i-1]) -
+      a2 * h^2 * Y[i] +
+      b0 * noise[i] * h
+  }
+  
+  Y[100001:length(Y)]
+}
+```
+
+
+##Approximated CAR 1 driving process recovery
+```{r}
+CAR1Driving <- function(a1, a2, Y1, M, N) {
+  Lhat1 <- numeric(N-1)
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  for (n in 1:(N-1)) {
+    down = n * M - M + 1
+    up = down + M
+    Lhat1[n] <- (lambda2-lambda1) * (Y1[up] - Y1[down] + (-lambda1) * (Y1[up]+Y[down]) / (2 * M)
+                                     + (-lambda1) * sum(Y1[(down+1):(up-1)]) / M)
+  }
+  out <- Lhat1
+}
+```
+
+
+```{r}
+CAR1_2Driving <- function(a1, a2, Y1, M, N) {
+  Lhat1 <- numeric(N-1)
+  lambda1 <- (-a1 + sqrt(a1^2 - 4*a2)) / 2
+  lambda2 <- (-a1 - sqrt(a1^2 - 4*a2)) / 2
+  for (n in 1:(N-1)) {
+    down = n * M - M + 1
+    up = down + M
+    Lhat1[n] <- (lambda1-lambda2) * (Y1[up] - Y1[down] + (-lambda2) * (Y1[up]+Y[down]) / (2 * M)
+                                     + (-lambda2) * sum(Y1[(down+1):(up-1)]) / M)
+  }
+  out <- Lhat1
+}
+```
+
+
+###Recover CAR(1)s and driving process of CAR(1)s
+```{r}
+noise <- rnorm(N*K+100000,mu*(1/K),eta*(1/sqrt(K)));
+##noise <- rgamma(N * K + 100000, a / K, b)
+Y <- CAR2(a1, a2, b0, noise, eta)
+YNew <- NewCAR2(a1, a2, b0, N, K, noise, Y0_1, Y1_1)
+relation <- K / M
+sample_index <- seq(
+  1,
+  length(Y),
+  by = relation
+)
+YSampled <- Y[sample_index]
+YReal <- CAR1Real(a1, a2, noise, eta)
+YRealSampled <- YReal[sample_index]
+Recov1 <- Car1Recovery(a1, a2, Y, M)
+Recov1Sampled <- Recov1[sample_index]
+Lhat1 <- CAR1Driving(a1, a2, Recov1Sampled, M, N)
+timeV <- seq(1, length(Lhat1), by = 1)
+LhatTrue <- CAR1Driving(a1, a2, YRealSampled, M, N)
+df <- data.frame(timeV, Lhat1, LhatTrue)
+ggplot(data = df) + geom_line(aes(x = timeV, y = Lhat1), colour = "red") + geom_line(aes(x = timeV, y = LhatTrue))+ labs(y = "Recovered CAR1 Lhat(red) vs true(black)", x = "time")
+##For second recovered driving process
+Y2Real <- CAR_2Real(a1, a2, noise, eta)
+YRecov2 <- Car_2Recovery(a1, a2, Y, M)
+Y2RealSampled <- Y2Real[sample_index]
+YRecov2Sampled <- YRecov2[sample_index]
+Lhat2 <- CAR1_2Driving(a1, a2, YRecov2Sampled, M, N)
+Lhat2True <- CAR1_2Driving(a1, a2, Y2RealSampled, M, N)
+ggplot(data = df) + geom_line(aes(x = timeV, y = Lhat2), colour = "red") + geom_line(aes(x = timeV, y = Lhat2True))+ labs(y = "Recovered CAR1 Lhat(red) vs true(black)", x = "time")
+##Processes
+timeVector <- seq(1, length(YRealSampled), by = 1)
+df1 <- data.frame(timeVector, YRealSampled, Y2RealSampled, YRecov2Sampled, Recov1Sampled)
+ggplot(data = df1) + geom_line(aes(x = timeVector, y = Recov1Sampled), colour = "red") + geom_line(aes(x = timeVector, y = YRealSampled))+ labs(y = "Recovered CAR1(red) vs true(black)", x = "time")
+ggplot(data = df1) + geom_line(aes(x = timeVector, y = YRecov2Sampled), colour = "red") + geom_line(aes(x = timeVector, y = Y2RealSampled)) + labs(y = "Recovered CAR1(red) vs true(black)", x = "time")
+##recov with difference
+y2diff <- YSampled - Recov1Sampled
+ggplot(data = df1) + geom_line(aes(x = timeVector, y = y2diff), colour = "red") + geom_line(aes(x = timeVector, y = Y2RealSampled)) + labs(y = "Recovered CAR1(red) vs true(black)", x = "time")
+Lhat2Diff <- CAR1_2Driving(a1, a2, y2diff, M, N)
+ggplot(data = df) + geom_line(aes(x = timeV, y = Lhat2Diff), colour = "red") + geom_line(aes(x = timeV, y = LhatTrue))+ labs(y = "Recovered CAR1 Lhat(red) vs true(black)", x = "time")
+```
+
+
+```{r}
+CAR2Sum1 <- YRecov2Sampled + Recov1Sampled
+ggplot(data = df1) + geom_line(aes(x = timeVector, y = CAR2Sum1), colour = "red") + geom_line(aes(x = timeVector, y = YSampled)) + labs(y = "Recovered CAR1(red) vs true(black)", x = "time")
+```
+
+
